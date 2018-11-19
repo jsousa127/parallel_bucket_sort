@@ -8,7 +8,7 @@ typedef struct bucket {
     int start;
     int i;
     int size;
-} *Bucket;
+} Bucket;
 
 int cmpfunc (const void * a, const void * b) {
    return ( *(int*)a - *(int*)b );
@@ -22,15 +22,16 @@ double bucket_sort(int* array, int n, int nt, int max) {
     // Definir numero de threads;
     omp_set_num_threads(nt);    
     // Criação dos buckets
-    Bucket buckets = malloc(nb * sizeof(struct bucket));
+    Bucket *buckets = (struct bucket *) calloc(nb, sizeof(struct bucket));
     int t1 = omp_get_wtime();
     
     #pragma omp parallel 
     {
         int i, b, tb, lb, size=0; 
         int id = omp_get_thread_num();
+        nt = omp_get_thread_num();
         // Calcular o tamanho de cada bucket
-        #pragma omp for
+        #pragma omp for private(i,tb,b)
             for(i = 0; i < n; i++) {
                tb = (array[i] * nt) / max;
                b = tb + id * nt;
@@ -67,14 +68,14 @@ double bucket_sort(int* array, int n, int nt, int max) {
 	    }
         #pragma omp barrier
         // Colocar os elementos do array no bucket correspondente
-        #pragma omp for
+        #pragma omp for private(i,b,tb)
         for(i = 0; i < n; i++) {
             tb = array[i] * nt / max;
             b = tb + id * nt;
             new[buckets[b].i] = array[i];
             buckets[b].i++;
         }
-        # pragma omp for
+        # pragma omp for private(i)
         for (i = 0; i < nt; i++) { 
                 qsort(&new[start_thread[i]], size_thread[i] , sizeof(int), cmpfunc); 
         }
@@ -90,7 +91,7 @@ double bucket_sort(int* array, int n, int nt, int max) {
 
 int main(int argc, char const *argv[])
 {
-    int *x = malloc(30000000*sizeof(int)); 
+    int *x = malloc(30000*sizeof(int)); 
     int i;
     int ord = 1;
     for(i=0; i < 30000000; i++) {
