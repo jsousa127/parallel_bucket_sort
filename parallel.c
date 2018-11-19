@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <omp.h>
+#include <string.h>
 
 typedef struct bucket {
     int start;
@@ -14,14 +15,14 @@ int cmpfunc (const void * a, const void * b) {
 }
 
 double bucket_sort(int* array, int n, int nt, int max) {
-    int *size_thread = calloc(nt, sizeof(int));
-    int *start_thread = calloc(nt, sizeof(int));
+    int size_thread[nt];
+    int start_thread[nt];
     int nb = nt * nt;
-    int *new = calloc(n, sizeof(int));
+    int *new = malloc(n * sizeof(int));
     // Definir numero de threads;
     omp_set_num_threads(nt);    
     // Criação dos buckets
-    Bucket buckets = calloc(nb, sizeof(struct bucket));
+    Bucket buckets = malloc(nb * sizeof(struct bucket));
     int t1 = omp_get_wtime();
     
     #pragma omp parallel 
@@ -75,19 +76,15 @@ double bucket_sort(int* array, int n, int nt, int max) {
         }
         # pragma omp for
         for (i = 0; i < nt; i++) { 
-            printf("%d\n",start_thread[i]);
                 qsort(&new[start_thread[i]], size_thread[i] , sizeof(int), cmpfunc); 
         }
     }
     double ret = omp_get_wtime() - t1;
     int aux;
     for(aux = 0; aux < n; aux++) {
-        array[aux] = new[aux];
+         array[aux] = new[aux];
     }
-    free(new);
-    free(size_thread);
-    free(start_thread);
-    free(buckets);
+    
     return ret;
 }
 
