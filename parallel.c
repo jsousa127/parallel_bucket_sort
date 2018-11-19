@@ -24,12 +24,15 @@ double bucket_sort(int* array, int n, int nt, int max) {
     // Criação dos buckets
     Bucket *buckets = (struct bucket *) calloc(nb, sizeof(struct bucket));
     int t1 = omp_get_wtime();
-    
+    memset(size_thread, 0, sizeof(int)*nt);
+    memset(start_thread, 0, sizeof(int)*nt);
+
+
     #pragma omp parallel 
     {
         int i, b, tb, lb, size=0; 
         int id = omp_get_thread_num();
-        nt = omp_get_thread_num();
+        nt = omp_get_num_threads();
         // Calcular o tamanho de cada bucket
         #pragma omp for private(i,tb,b)
             for(i = 0; i < n; i++) {
@@ -91,16 +94,16 @@ double bucket_sort(int* array, int n, int nt, int max) {
 
 int main(int argc, char const *argv[])
 {
-    int *x = malloc(30000*sizeof(int)); 
+    int *x = malloc(300000*sizeof(int)); 
     int i;
     int ord = 1;
-    for(i=0; i < 30000000; i++) {
+    for(i=0; i < 300000; i++) {
         x[i] = (int) random() % 500;
     }
-    double t = bucket_sort(x,30000000,4,501);
-    for (i=0; i < 29999999; i++) {
+    double t = bucket_sort(x,300000,4,501);
+    for (i=0; i < 299999; i++) {
         if (x[i] > x[i+1]) ord = 0;
     }
-    if (ord == 1) printf("O array foi ordenado em %f\n",t);
-    free(x);    
+    if (ord == 1) printf("O array foi ordenado em %f\n",t); 
+    return 1;   
 }
