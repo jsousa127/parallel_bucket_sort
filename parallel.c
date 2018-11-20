@@ -4,46 +4,65 @@
 #include <omp.h>
 #include <string.h>
 
+
+
 typedef struct bucket {
     int start;
     int i;
     int size;
 } Bucket;
 
+int cache[30000000];
+
 int cmpfunc (const void * a, const void * b) {
-   return ( *(int*)a - *(int*)b );
+   return (*(int*)a < *(int*)b) ? -1 : (*(int*)a > *(int*)b);
 }
 
-double bucket_sort(int* array, int n, int nt, int max) {
+void clear_cache() {
+    for(unsigned i = 0; i < 30000000; i++) {
+        cache[i] = i;
+    }
+}
+
+double bucket_sort(int* array, int n) {
+    int nt;
+    #pragma omp parallel
+    {
+        #pragma omp single
+        nt = omp_get_num_threads(); 
+    } 
     int size_thread[nt];
     int start_thread[nt];
     int nb = nt * nt;
     int *new = malloc(n * sizeof(int));
+    int r = 10000 / nt;
     // Definir numero de threads;
     omp_set_num_threads(nt);    
     // Criação dos buckets
     Bucket *buckets = (struct bucket *) calloc(nb, sizeof(struct bucket));
-    int t1 = omp_get_wtime();
+    
     memset(size_thread, 0, sizeof(int)*nt);
     memset(start_thread, 0, sizeof(int)*nt);
 
-
+    int t1 = omp_get_wtime();
     #pragma omp parallel 
     {
-        int i, b, tb, lb, size=0; 
+        int i, j, b, tb, lb; 
         int id = omp_get_thread_num();
         nt = omp_get_num_threads();
         // Calcular o tamanho de cada bucket
-        #pragma omp for private(i,tb,b)
+        #pragma omp for private(i,b)
             for(i = 0; i < n; i++) {
-               tb = (array[i] * nt) / max;
+               tb = array[i] / r;
+
+            if (tb > nt-1) tb = nt - 1;
                b = tb + id * nt;
-               if(!(buckets[b].size)) buckets[b].size = 1;
-               else buckets[b].size++;
+               buckets[b].size++;
         }
         // Calcular o tamanho do conjunto de buckets correspondentes a esta thread
-        for(i = id; i < nb; i = i + nt) {
-            if(buckets[i].size) size += buckets[i].size;
+        int size = 0;
+        for(j = id; j < nb; j = j + nt) {
+            size += buckets[j].size;
         }
         size_thread[id] = size;
         // Esperar que todas as threads calculem o seu tamanho
@@ -55,32 +74,33 @@ double bucket_sort(int* array, int n, int nt, int max) {
             start_thread[0] = 0;
             buckets[0].start = 0;
             buckets[0].i = 0;
-            for(i = 1; i < nt; i++) {
-                start_thread[i] = start_thread[i-1] + size_thread[i-1]; 
-                buckets[i].start = buckets[i-1].start + buckets[i-1].size; 
-                buckets[i].i =  buckets[i].start;
+            for(j = 1; j < nt; j++) {
+                start_thread[j] = start_thread[j-1] + size_thread[j-1]; 
+                buckets[j].start = buckets[j-1].start + size_thread[j-1]; 
+                buckets[j].i =  buckets[j].start;
             }
         }
         // Esperar que o master inicialize os buckets
         #pragma omp barrier
         // Cada thread inicializa o resto dos seus buckets
-        for (i = id + nt; i < nb; i = i + nt) {
-            int lb = i - nb;
-            buckets[i].start = buckets[lb].start + buckets[lb].size;
-            buckets[i].i = buckets[i].start;	
+        for (j = id + nt; j < nb; j = j + nt) {
+            int lb = j - nt;
+            buckets[j].start = buckets[lb].start + buckets[lb].size;
+            buckets[j].i = buckets[j].start;	
 	    }
         #pragma omp barrier
         // Colocar os elementos do array no bucket correspondente
-        #pragma omp for private(i,b,tb)
+        #pragma omp for private(i,b)
         for(i = 0; i < n; i++) {
-            tb = array[i] * nt / max;
+            tb = array[i] / r;
+            if (tb > nt-1) tb = nt - 1;
             b = tb + id * nt;
             new[buckets[b].i] = array[i];
             buckets[b].i++;
         }
         # pragma omp for private(i)
         for (i = 0; i < nt; i++) { 
-                qsort(&new[start_thread[i]], size_thread[i] , sizeof(int), cmpfunc); 
+                qsort(new+start_thread[i], size_thread[i] , sizeof(int), cmpfunc); 
         }
     }
     double ret = omp_get_wtime() - t1;
@@ -94,16 +114,23 @@ double bucket_sort(int* array, int n, int nt, int max) {
 
 int main(int argc, char const *argv[])
 {
-    int *x = malloc(300000*sizeof(int)); 
-    int i;
+    int i, j, out, size = atoi(argv[1]);
+    int *x = malloc(size*sizeof(int)); 
     int ord = 1;
-    for(i=0; i < 300000; i++) {
-        x[i] = (int) random() % 500;
+    double t[5];
+    for(j=0; j < 5; j++){
+        clear_cache();
+        for(i=0; i < size; i++) {
+            x[i] = (int) random() % 10000;
+        }
+        t[j] = bucket_sort(x,size);
+        for (i=0; i < size-1; i++) {
+            if (x[i] > x[i+1]) 
+                ord = 0;
+        }
     }
-    double t = bucket_sort(x,300000,4,501);
-    for (i=0; i < 299999; i++) {
-        if (x[i] > x[i+1]) ord = 0;
-    }
-    if (ord == 1) printf("O array foi ordenado em %f\n",t); 
+    qsort(&t[0], 5, sizeof(&t[0]), cmpfunc);
+    if (ord == 1) printf("%f ",t[2]);
+    else printf("%f ",-1.0); 
     return 1;   
 }

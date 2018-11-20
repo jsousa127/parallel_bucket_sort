@@ -9,11 +9,19 @@ typedef struct bucket {
     int size;
 } *Bucket;
 
+int cache[30000000];
+
 int cmpfunc (const void * a, const void * b) {
    return ( *(int*)a - *(int*)b );
 }
 
-int* bucket_sort(int* array, int n, int nb, int max) {
+void clear_cache() {
+    for(unsigned i = 0; i < 30000000; i++) {
+        cache[i] = i;
+    }
+}
+
+double bucket_sort(int* array, int n, int nb, int max) {
     int i, b;
     int *new = calloc(n, sizeof(int));
     // Criação dos buckets
@@ -41,16 +49,34 @@ int* bucket_sort(int* array, int n, int nb, int max) {
     //Ordenação dos buckets
     for(i = 0; i < nb; i++) 
          qsort(&new[buckets[i].start], buckets[i].size , sizeof(int), cmpfunc);
-    printf("O array demorou %f s a ser ordenado", omp_get_wtime() - t1);
-    return new;
+
+    double ret = omp_get_wtime() - t1;   
+    int aux;
+    for(aux = 0; aux < n; aux++) {
+         array[aux] = new[aux];
+    }    
+    return ret;
 }
 
 
 int main(int argc, char const *argv[])
-{   int *x = malloc(30000000*sizeof(int)); 
-    int i;
-    for(i=0; i < 30000000; i++) {
-        x[i] = (int) random() % 500;
+{   int size = atoi(argv[1]);
+    int *x = malloc(size*sizeof(int)); 
+    int i,j,ord=1;
+    double t[5];
+    for(j=0; j < 5; j++){
+        clear_cache();
+        
+        for(i=0; i < size; i++) {
+            x[i] = (int) random() % 500;
+        }
+        t[j] = bucket_sort(x,size,atoi(argv[2]),501);
+        for (i=0; i < size-1; i++) {
+            if (x[i] > x[i+1]) 
+                ord = 0;
+        }
     }
-    x = bucket_sort(x,30000000,16,501);
+    qsort(&t[0], 5, sizeof(&t[0]), cmpfunc);
+    if (ord == 1) printf("%f ",t[2]); 
+    
 }
