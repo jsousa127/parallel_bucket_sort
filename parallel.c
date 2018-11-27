@@ -18,6 +18,13 @@ int cmpfunc (const void * a, const void * b) {
    return (*(int*)a < *(int*)b) ? -1 : (*(int*)a > *(int*)b);
 }
 
+static int cmpdouble (const void * a, const void * b)
+{
+  if (*(double*)a > *(double*)b) return 1;
+  else if (*(double*)a < *(double*)b) return -1;
+  else return 0;  
+}
+
 void clear_cache() {
     for(unsigned i = 0; i < 30000000; i++) {
         cache[i] = i;
@@ -35,7 +42,7 @@ double bucket_sort(int* array, int n) {
     int start_thread[nt];
     int nb = nt * nt;
     int *new = malloc(n * sizeof(int));
-    int r = 10000 / nt;
+    int r = 10000 / (nt);
     // Definir numero de threads;
     omp_set_num_threads(nt);    
     // Criação dos buckets
@@ -55,7 +62,7 @@ double bucket_sort(int* array, int n) {
             for(i = 0; i < n; i++) {
                tb = array[i] / r;
 
-            if (tb > nt-1) tb = nt - 1;
+            if (tb > nt-1) tb = (nt) - 1;
                b = tb + id * nt;
                buckets[b].size++;
         }
@@ -93,7 +100,7 @@ double bucket_sort(int* array, int n) {
         #pragma omp for private(i,b)
         for(i = 0; i < n; i++) {
             tb = array[i] / r;
-            if (tb > nt-1) tb = nt - 1;
+            if (tb > (nt)-1) tb = (nt) - 1;
             b = tb + id * nt;
             new[buckets[b].i] = array[i];
             buckets[b].i++;
@@ -117,8 +124,8 @@ int main(int argc, char const *argv[])
     int i, j, out, size = atoi(argv[1]);
     int *x = malloc(size*sizeof(int)); 
     int ord = 1;
-    double t[5];
-    for(j=0; j < 5; j++){
+    double t[20];
+    for(j=0; j < 20; j++){
         clear_cache();
         for(i=0; i < size; i++) {
             x[i] = (int) random() % 10000;
@@ -129,8 +136,8 @@ int main(int argc, char const *argv[])
                 ord = 0;
         }
     }
-    qsort(&t[0], 5, sizeof(&t[0]), cmpfunc);
-    if (ord == 1) printf("%f ",t[2]);
+    qsort(t, 20, sizeof(&t[0]), cmpdouble);
+    if (ord == 1) printf("%f ",(t[10]+t[11])/2.0); 
     else printf("%f ",-1.0); 
     return 1;   
 }
