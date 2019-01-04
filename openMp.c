@@ -3,7 +3,7 @@
 #include <time.h>
 #include <omp.h>
 #include <string.h>
-
+#include <unistd.h>
 
 
 typedef struct bucket {
@@ -51,7 +51,7 @@ double bucket_sort(int* array, int n) {
     memset(size_thread, 0, sizeof(int)*nt);
     memset(start_thread, 0, sizeof(int)*nt);
 
-    int t1 = omp_get_wtime();
+    double t1 = omp_get_wtime();
     #pragma omp parallel 
     {
         int i, j, b, tb, lb; 
@@ -119,25 +119,39 @@ double bucket_sort(int* array, int n) {
     return ret;
 }
 
+int kBest(double* array,int size, int k, double tol) {
+    int i;
+    double sigma, top;
+    if(size < 3) return 0;
+    qsort(array, size, sizeof(double), cmpdouble);
+    sigma = (double)(array[0] * 0.05);
+    top = (double)(array[0] + sigma);
+    for(i=1; i<k; i++) {
+        if(array[i] > top) return 0;
+    }
+    return 1;
+}
+
 int main(int argc, char const *argv[])
 {
     int i, j, out, size = atoi(argv[1]);
     int *x = malloc(size*sizeof(int)); 
     int ord = 1;
+    srand(getpid());
+    for(i=0; i < size; i++) {
+        x[i] = (int) random() % 10000;
+    }
+    clear_cache();
     double t[20];
     for(j=0; j < 20; j++){
-        clear_cache();
-        for(i=0; i < size; i++) {
-            x[i] = (int) random() % 10000;
-        }
+        
+
         t[j] = bucket_sort(x,size);
-        for (i=0; i < size-1; i++) {
-            if (x[i] > x[i+1]) 
-                ord = 0;
+        if(kBest(t,j+1,3,5.0)) {
+            printf("%f;",t[0]);
+            return 0;
         }
     }
-    qsort(t, 20, sizeof(&t[0]), cmpdouble);
-    if (ord == 1) printf("%f ",(t[10]+t[11])/2.0); 
-    else printf("%f ",-1.0); 
+    printf("%f;",t[0]); 
     return 1;   
 }

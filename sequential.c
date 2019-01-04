@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <omp.h>
+#include <sys/time.h>
+
+#include <unistd.h>
 
 typedef struct bucket {
     int start;
@@ -33,7 +36,7 @@ double bucket_sort(int* array, int n, int nb, int max) {
     int *new = calloc(n, sizeof(int));
     // Criação dos buckets
     Bucket buckets = calloc(nb, sizeof(struct bucket));
-    int t1 = omp_get_wtime();
+    double t1 = omp_get_wtime();
     // Contagem de inteiros em cada bucket
     for(i = 0; i < n; i++) {
         b = (array[i] * nb) / max;
@@ -65,26 +68,37 @@ double bucket_sort(int* array, int n, int nb, int max) {
     return ret;
 }
 
+int kBest(double* array,int size, int k, double tol) {
+    int i;
+    double sigma, top;
+    if(size < 3) return 0;
+    qsort(array, size, sizeof(double), cmpdouble);
+    sigma = (double)(array[0] * 0.05);
+    top = (double)(array[0] + sigma);
+    for(i=1; i<k; i++) {
+        if(array[i] > top) return 0;
+    }
+    return 1;
+}
 
 int main(int argc, char const *argv[])
 {   int size = atoi(argv[1]);
     int *x = malloc(size*sizeof(int)); 
     int i,j,ord=1;
     double t[20];
+
+    srand(getpid());
+    for(i=0; i < size; i++) {
+        x[i] = (int) random() % 500;
+    }
+    clear_cache();
     for(j=0; j < 20; j++){
-        clear_cache();
-        
-        for(i=0; i < size; i++) {
-            x[i] = (int) random() % 500;
-        }
         t[j] = bucket_sort(x,size,atoi(argv[2]),501);
-        for (i=0; i < size-1; i++) {
-            if (x[i] > x[i+1]) 
-                ord = 0;
+        if(kBest(t,j+1,3,5.0)) {
+            printf("%f;",t[0]);
+            return 0;
         }
     }
-    qsort(t, 20, sizeof(&t[0]), cmpdouble);
-    if (ord == 1) printf("%f ",(t[10]+t[11])/2.0); 
-    else printf("%f ",-1.0);
+    printf("%f;",t[0]);
     
 }
